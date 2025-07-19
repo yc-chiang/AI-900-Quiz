@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <title>AI-900 練習題互動式測驗</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', 'Arial', sans-serif;
+      max-width: 1000px;
+      margin: 2rem auto;
+      line-height: 1.6;
+      padding: 0 1rem;
+      background-color: #fcfcfc;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 1rem;
+      color: #333;
+    }
+    select {
+      padding: 0.5rem;
+      font-size: 1rem;
+      margin-right: 1rem;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      justify-content: center;
+    }
+    .controls button {
+      padding: 0.5rem 1rem;
+      font-size: 0.9rem;
+      cursor: pointer;
+      background-color: #eee;
+      border: 1px solid #aaa;
+      border-radius: 4px;
+    }
+    .controls button:hover {
+      background-color: #ddd;
+    }
+    .stats {
+      margin-top: 2rem;
+      padding: 1rem;
+      border-top: 2px solid #ccc;
+      background: #f9f9f9;
+      font-size: 0.95rem;
+      text-align: center;
+    }
+    .question {
+      margin-bottom: 2rem;
+      padding: 1rem;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      background: #fff;
+    }
+    .question h3 {
+      margin-top: 0;
+    }
+    .options button {
+      display: block;
+      margin: 0.3rem 0;
+      padding: 0.5rem 0.75rem;
+      border-radius: 4px;
+      border: 1px solid #888;
+      background: #f2f2f2;
+      cursor: pointer;
+      width: 100%;
+      text-align: left;
+    }
+    .options button.correct {
+      background: #c7f5c7;
+      border-color: green;
+    }
+    .options button.wrong {
+      background: #f5c7c7;
+      border-color: red;
+    }
+    .options button:disabled {
+      opacity: 0.75;
+      cursor: not-allowed;
+    }
+    .answer {
+      margin-top: 0.5rem;
+      font-weight: bold;
+    }
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>AI-900 練習題互動式測驗</h1>
+
+  <div class="controls">
+    <label>
+      題目分類：
+      <select id="categorySelect">
+        <option value="all">全部分類</option>
+      </select>
+    </label>
+
+    <button id="showAllBtn">顯示全部題目</button>
+    <button id="showIncorrectBtn">只看錯題</button>
+    <button id="retryIncorrectBtn">錯題重練</button>
+  </div>
+
+  <div id="quiz"></div>
+
+  <div class="stats" id="stats">
+    📝 已作答題數：0　
+    ✅ 答對題數：0　
+    ❌ 答錯題數：0　
+    📈 正確率：0%
+  </div>
+
+  <script>
+    // 💡 下一段將貼出：完整的題庫 questions = [...]
+const questions = [
+  {
+    id: 1,
+    category: "Conversational AI",
+    text: "公司開發了 Webchat Bot 來回答常見問題，會帶來哪項商業效益？",
+    options: {
+      A: "increased sales",
+      B: "a reduced workload for the customer service agents",
+      C: "improved product reliability"
+    },
+    correctAnswer: "B"
+  },
+  {
+    id: 2,
+    category: "Machine Learning Workflow",
+    text: "對於機器學習流程，應如何切分資料做訓練與評估？",
+    options: {
+      A: "Use features for training and labels for evaluation.",
+      B: "Randomly split the data into rows for training and rows for evaluation.",
+      C: "Use labels for training and features for evaluation.",
+      D: "Randomly split the data into columns for training and columns for evaluation."
+    },
+    correctAnswer: "B"
+  },
+  {
+    id: 3,
+    category: "Model Evaluation",
+    text: "你有一個分類模型，下列混淆矩陣中，正確預測為「1」的數量與 false negatives 數量為？（1→1=11, 1→0=5）",
+    options: {
+      A: "正確預測 positives：11，false negatives：5",
+      B: "正確預測 positives：5，false negatives：11",
+      C: "正確預測 positives：1033，false negatives：13951",
+      D: "正確預測 positives：13951，false negatives：1033"
+    },
+    correctAnswer: "A"
+  },
+  {
+    id: 4,
+    category: "Responsible AI",
+    text: "你使用 Automated ML 介面建立模型，要符合 Microsoft 的 AI 透明性原則，你應該？",
+    options: {
+      A: "Set Validation type to Auto",
+      B: "Enable Explain best model",
+      C: "Set Primary metric to accuracy",
+      D: "Set Max concurrent iterations to 0"
+    },
+    correctAnswer: "B"
+  },
+  {
+    id: 5,
+    category: "AI Workload Types",
+    text: "預測房價屬於異常偵測嗎？判斷是否異常：\n\n(1) 房價預測 ➜ ?\n(2) 登入異常偵測 ➜ ?\n(3) 糖尿病預測 ➜ ?",
+    options: {
+      A: "No / Yes / No",
+      B: "Yes / Yes / Yes",
+      C: "No / No / No",
+      D: "Yes / No / Yes"
+    },
+    correctAnswer: "A"
+  },
+  // …接下來我會補上 6–50 題，每題格式一致…
+];questions.push(
+  {
+    id: 51,
+    category: "Model Evaluation",
+    text: "你要評估一個回歸模型，可以用哪兩個指標？",
+    options: {
+      A: "coefficient of determination (R2)",
+      B: "F1 score",
+      C: "root mean squared error (RMSE)",
+      D: "area under curve (AUC)",
+      E: "balanced accuracy"
+    },
+    correctAnswer: ["A", "C"]
+  },
+  {
+    id: 52,
+    category: "AI Workload Types",
+    text: "預測某天通過橋的車輛數量是什麼類型的模型？",
+    options: {
+      A: "classification",
+      B: "clustering",
+      C: "regression"
+    },
+    correctAnswer: "C"
+  },
+  {
+    id: 53,
+    category: "Azure ML Designer",
+    text: "你要使用 Azure Machine Learning designer 建立汽車價格預測模型，該使用哪些模組？",
+    options: {
+      A: "Convert to CSV",
+      B: "K-Means Clustering",
+      C: "Linear Regression",
+      D: "Split Data",
+      E: "Select Columns in Dataset",
+      F: "Summarize Data"
+    },
+    correctAnswer: ["C", "D", "E"]
+  },
+  {
+    id: 54,
+    category: "Machine Learning Types",
+    text: "識別購買習慣相似的顧客屬於哪種 ML 技術？",
+    options: {
+      A: "classification",
+      B: "regression",
+      C: "clustering"
+    },
+    correctAnswer: "C"
+  },
+  {
+    id: 55,
+    category: "Model Types",
+    text: "要預測拍賣物品價格，應使用哪種模型？",
+    options: {
+      A: "Classification",
+      B: "Clustering",
+      C: "Regression"
+    },
+    correctAnswer: "C"
+  },
+  {
+    id: 56,
+    category: "Model Evaluation",
+    text: "評估分類模型可使用哪一個指標？",
+    options: {
+      A: "true positive rate",
+      B: "mean absolute error (MAE)",
+      C: "coefficient of determination (R2)",
+      D: "root mean squared error (RMSE)"
+    },
+    correctAnswer: "A"
+  },
+  {
+    id: 57,
+    category: "Azure ML Designer",
+    text: "在 Azure ML designer 畫布中可以拖入哪些組件？",
+    options: {
+      A: "dataset",
+      B: "compute",
+      C: "pipeline",
+      D: "module"
+    },
+    correctAnswer: ["A", "D"]
+  },
+  {
+    id: 58,
+    category: "Azure ML Designer",
+    text: "要將資料分成訓練集與驗證集，應使用哪個模組？",
+    options: {
+      A: "Select Columns in Dataset",
+      B: "Add Rows",
+      C: "Split Data",
+      D: "Join Data"
+    },
+    correctAnswer: "C"
+  },
+  {
+    id: 59,
+    category: "Machine Learning Types",
+    text: "將每一 ML 類型配對到正確場景：\n(1) 預測班機延遲時間\n(2) 將顧客分群\n(3) 預測學生是否完成課程",
+    options: {
+      A: "Regression / Clustering / Classification",
+      B: "Classification / Clustering / Regression",
+      C: "Regression / Classification / Clustering",
+      D: "Clustering / Regression / Classification"
+    },
+    correctAnswer: "A"
+  },
+  {
+    id: 60,
+    category: "Model Evaluation",
+    text: "圖像分類中用於表示預測正確可能性的指標是？",
+    options: {
+      A: "Accuracy",
+      B: "Confidence",
+      C: "Root Mean Square Error",
+      D: "Sentiment"
+    },
+    correctAnswer: "B"
+  },
+  {
+    id: 61,
+    category: "Responsible AI",
+    text: "若 AI 系統遇到異常或缺失資料而不進行預測，是符合哪項原則？",
+    options: {
+      A: "inclusiveness",
+      B: "privacy and security",
+      C: "reliability and safety",
+      D: "transparency"
+    },
+    correctAnswer: "C"
+  },
+  {
+    id: 62,
+    category: "Feature Engineering",
+    text: "將訓練資料中數值變項調整為相同尺度是？",
+    options: {
+      A: "data ingestion",
+      B: "feature engineering",
+      C: "feature selection",
+      D: "model training"
+    },
+    correctAnswer: "B"
+  },
+  {
+    id: 63,
+    category: "Model Preparation",
+    text: "在分類模型訓練前，將圖片指定標籤屬於哪個階段？",
+    options: {
+      A: "evaluation",
+      B: "feature engineering",
+      C: "hyperparameter tuning",
+      D: "labeling"
+    },
+    correctAnswer: "D"
+  },
+  {
+    id: 64,
+    category: "Features vs Labels",
+    text: "你有一筆訓練資料：Date, Time, Mass, Temperature, Quality Test。\n哪個是 feature，哪個是 label？",
+    options: {
+      A: "Mass 是 feature，Quality Test 是 label，Temperature 是 label",
+      B: "Mass 是 feature，Quality Test 是 label，Temperature 是 feature",
+      C: "Mass 是 label，Quality Test 是 feature，Temperature 是 label",
+      D: "Quality Test 是 label，其它皆為 feature"
+    },
+    correctAnswer: "B"
+  },
+  {
+    id: 65,
+    category: "Machine Learning Types",
+    text: "對以下陳述進行判定：\n(1) 回歸模型使用未標記資料訓練？\n(2) 用分類模型預測時間序列數據？\n(3) 根據共通特性分群屬於 clustering？",
+    options: {
+      A: "No / No / Yes",
+      B: "Yes / Yes / Yes",
+      C: "No / Yes / No",
+      D: "Yes / No / Yes"
+    },
+    correctAnswer: "A"
+  },
+  {
+    id: 66,
+    category: "Data Preparation",
+    text: "在資料攝取與準備階段，會執行哪些操作？（選兩項）",
+    options: {
+      A: "Calculate accuracy",
+      B: "Score test data",
+      C: "Combine datasets",
+      D: "Use model for predictions",
+      E: "Remove records with missing values"
+    },
+    correctAnswer: ["C", "E"]
+  },
+  {
+    id: 67,
+    category: "Model Types",
+    text: "你要預測某地區的動物數量，應用哪種 ML 類型？",
+    options: {
+      A: "regression",
+      B: "clustering",
+      C: "classification"
+    },
+    correctAnswer: "A"
+  },
+  {
+    id: 68,
+    category: "Azure ML Designer",
+    text: "Azure ML designer 支援哪些語言撰寫自定程式碼？",
+    options: {
+      A: "Python",
+      B: "R",
+      C: "C#",
+      D: "Scala"
+    },
+    correctAnswer: ["A", "B"]
+  },
+  {
+    id: 69,
+    category: "Model Types",
+    text: "回歸模型需使用哪種型態標籤？Clustering 是否需標籤？",
+    options: {
+      A: "回歸模型標籤需為數值，Clustering 不需標籤",
+      B: "回歸模型可用任何標籤，Clustering 需標籤",
+      C: "分類模型需數值標籤，Clustering 不需",
+      D: "所有模型都需文字標籤"
+    },
+    correctAnswer: "A"
+  },
+  {
+    id: 70,
+    category: "Computer Vision",
+    text: "你需要打造一台能辨識正確形狀寶特瓶並排除其他物品的回收機，應使用哪種 AI 工作負載？",
+    options: {
+      A: "anomaly detection",
+      B: "conversational AI",
+      C: "computer vision",
+      D: "natural language processing"
+    },
+    correctAnswer: "C"
+  }
+);questions.push(
+  {
+    id: 101,
+    category: "Speech",
+    text: "下列哪些情境使用語音合成技術？（選兩項）",
+    options: {
+      A: "自動語音讀取電話輸入的信用卡號",
+      B: "新聞直播即時字幕產生",
+      C: "會議錄音的關鍵字萃取",
+      D: "AI 電玩角色能用語音與玩家互動"
+    },
+    correctAnswer: ["A", "D"]
+  },
+  {
+    id: 102,
+    category: "Translation",
+    text: "Translator 服務能做哪些事情？（選出正確）",
+    options: {
+      A: "翻譯文字",
+      B: "偵測文字語言",
+      C: "語音轉文字"
+    },
+    correctAnswer: ["A", "B"]
+  },
+  {
+    id: 103,
+    category: "NLP",
+    text: "你要掃描新聞文章，將負面文章通知員工、正面文章放入剪報。應用哪些 NLP 技術？",
+    options: {
+      A: "Entity recognition",
+      B: "Sentiment analysis",
+      C: "Translation",
+      D: "Key phrase extraction",
+      E: "Speech synthesis"
+    },
+    correctAnswer: ["A", "B", "D"]
+  },
+  {
+    id: 104,
+    category: "Conversational AI",
+    text: "QnA Maker 支援哪些格式上傳知識庫？",
+    options: {
+      A: "PPTX",
+      B: "XML",
+      C: "ZIP",
+      D: "PDF"
+    },
+    correctAnswer: "D"
+  },
+  {
+    id: 105,
+    category: "NLP",
+    text: "哪個場景適合用關鍵詞萃取（Key phrase extraction）？",
+    options: {
+      A: "判定評論為正面或負面",
+      B: "根據音訊生成影片字幕",
+      C: "找出哪些文件主題相似",
+      D: "將英文文件翻譯成德文"
+    },
+    correctAnswer: "C"
+  },
+  {
+    id: 106,
+    category: "NLP",
+    text: "你有多筆保險理賠報告文字，需要萃取關鍵詞摘要。適合哪種 AI 工作負載？",
+    options: {
+      A: "natural language processing",
+      B: "conversational AI",
+      C: "anomaly detection",
+      D: "computer vision"
+    },
+    correctAnswer: "A"
+  },
+  {
+    id: 107,
+    category: "NLP",
+    text: "自然語言處理可以做到什麼？",
+    options: {
+      A: "分類 email 為工作相關或私人",
+      B: "預測未來租車數量",
+      C: "預測哪位訪客會完成交易",
+      D: "偵測工廠極高溫度並停機"
+    },
+    correctAnswer: "A"
+  },
+  {
+    id: 108,
+    category: "Language Service",
+    text: "要讓 AI 系統理解輸入如 '稍後回電' 的意思，應用哪個 AI 技術？",
+    options: {
+      A: "Translator",
+      B: "Text Analytics",
+      C: "Speech",
+      D: "Language Understanding (LUIS)"
+    },
+    correctAnswer: "D"
+  },
+  {
+    id: 109,
+    category: "Conversational AI",
+    text: "你在 Azure 中開發聊天機器人，要判斷使用者意圖，應用哪個服務？",
+    options: {
+      A: "Translator",
+      B: "QnA Maker",
+      C: "Speech",
+      D: "Language Understanding (LUIS)"
+    },
+    correctAnswer: "D"
+  },
+  {
+    id: 110,
+    category: "Translation",
+    text: "你要將公司新聞稿翻譯成多國語言，應使用哪個服務？",
+    options: {
+      A: "Translator",
+      B: "Text Analytics",
+      C: "Speech",
+      D: "Language Understanding (LUIS)"
+    },
+    correctAnswer: "A"
+  }
+);questions.push(
+  {
+    id: 151,
+    category: "Computer Vision",
+    text: "你要辨識照片中的人物，應該使用哪個 Azure AI 服務？",
+    options: {
+      A: "Custom Vision",
+      B: "Face",
+      C: "Form Recognizer",
+      D: "Text Analytics"
+    },
+    correctAnswer: "B"
+  },
+  {
+    id: 152,
+    category: "Computer Vision",
+    text: "要擷取發票上的文字資料，應該用哪個服務？",
+    options: {
+      A: "Text Analytics",
+      B: "Speech",
+      C: "Form Recognizer",
+      D: "Computer Vision"
+    },
+    correctAnswer: "C"
+  },
+  {
+    id: 153,
+    category: "Computer Vision",
+    text: "Form Recognizer 可以做到哪些事？（選出正確）",
+    options: {
+      A: "擷取掃描表單中的欄位與內容",
+      B: "辨識物件與標籤",
+      C: "分類聲音內容",
+      D: "翻譯圖片文字"
+    },
+    correctAnswer: "A"
+  },
+  {
+    id: 154,
+    category: "Computer Vision",
+    text: "辨識相片中的文字與物件使用哪個服務？",
+    options: {
+      A: "Face",
+      B: "Translator",
+      C: "Computer Vision",
+      D: "Language Understanding"
+    },
+    correctAnswer: "C"
+  },
+  {
+    id: 155,
+    category: "Speech",
+    text: "你要即時將演講內容轉為字幕，應該使用哪項技術？",
+    options: {
+      A: "Text Analytics",
+      B: "Speech to Text",
+      C: "Form Recognizer",
+      D: "LUIS"
+    },
+    correctAnswer: "B"
+  },
+  {
+    id: 156,
+    category: "Azure AI Services",
+    text: "下列哪個服務可將表格掃描檔轉為可分析的結構化資料？",
+    options: {
+      A: "Computer Vision",
+      B: "Form Recognizer",
+      C: "LUIS",
+      D: "Speech Translation"
+    },
+    correctAnswer: "B"
+  },
+  {
+    id: 157,
+    category: "Computer Vision",
+    text: "要辨識圖片中的人臉屬性（如年齡、性別、微笑）應用哪個服務？",
+    options: {
+      A: "Face",
+      B: "Speech",
+      C: "LUIS",
+      D: "Form Recognizer"
+    },
+    correctAnswer: "A"
+  },
+  {
+    id: 158,
+    category: "NLP",
+    text: "Text Analytics 可以執行哪些任務？（選兩項）",
+    options: {
+      A: "關鍵詞萃取",
+      B: "情感分析",
+      C: "語音辨識",
+      D: "臉部辨識"
+    },
+    correctAnswer: ["A", "B"]
+  },
+  {
+    id: 159,
+    category: "Responsible AI",
+    text: "以下哪個場景符合 Microsoft 的 AI 公平性原則？",
+    options: {
+      A: "系統自動隱藏低薪員工資料，避免偏見",
+      B: "系統訓練資料只用男性資料",
+      C: "系統分析使用者背景並提供客製建議",
+      D: "系統明確提供其輸出邏輯來源與依據"
+    },
+    correctAnswer: "D"
+  },
+  {
+    id: 160,
+    category: "Responsible AI",
+    text: "你使用 Azure ML 製作模型，在部署時想要知道它是如何做出預測。應啟用哪個選項？",
+    options: {
+      A: "Explain best model",
+      B: "Enable cross validation",
+      C: "Use R2 metric",
+      D: "Filter invalid rows"
+    },
+    correctAnswer: "A"
+  }
+);questions.push(
+  {
+    id: 201,
+    category: "Conversational AI",
+    text: "聊天機器人想要回答顧客常見問題，應使用哪個 Azure AI 服務？",
+    options: {
+      A: "QnA Maker",
+      B: "LUIS",
+      C: "Speech to Text",
+      D: "Text Analytics"
+    },
+    correctAnswer: "A"
+  },
+  {
+    id: 202,
+    category: "Conversational AI",
+    text: "要讓聊天機器人理解『我想預訂一張票』的意思，應該使用？",
+    options: {
+      A: "Face API",
+      B: "Text Analytics",
+      C: "Language Understanding (LUIS)",
+      D: "Form Recognizer"
+    },
+    correctAnswer: "C"
+  },
+  {
+    id: 203,
+    category: "Conversational AI",
+    text: "聊天機器人要回答知識庫問題應該用什麼服務？",
+    options: {
+      A: "Azure Bot Service",
+      B: "LUIS",
+      C: "QnA Maker",
+      D: "Speech Translation"
+    },
+    correctAnswer: "C"
+  },
+  {
+    id: 204,
+    category: "Conversational AI",
+    text: "聊天機器人可以接收哪些輸入方式？（選兩項）",
+    options: {
+      A: "鍵盤文字",
+      B: "語音",
+      C: "視訊",
+      D: "指紋"
+    },
+    correctAnswer: ["A", "B"]
+  },
+  {
+    id: 205,
+    category: "Conversational AI",
+    text: "以下哪一項是聊天機器人常見的功能？（選兩項）",
+    options: {
+      A: "回答顧客常見問題",
+      B: "執行語音轉文字",
+      C: "建立影像分類模型",
+      D: "判斷使用者意圖"
+    },
+    correctAnswer: ["A", "D"]
+  },
+  {
+    id: 206,
+    category: "NLP",
+    text: "你要從文章中找出人名與地名，應使用哪個 NLP 功能？",
+    options: {
+      A: "Key Phrase Extraction",
+      B: "Entity Recognition",
+      C: "Sentiment Analysis",
+      D: "Language Detection"
+    },
+    correctAnswer: "B"
+  },
+  {
+    id: 207,
+    category: "Responsible AI",
+    text: "Microsoft 的 Responsible AI 原則不包含哪一項？",
+    options: {
+      A: "Fairness",
+      B: "Reliability",
+      C: "Profitability",
+      D: "Accountability"
+    },
+    correctAnswer: "C"
+  },
+  {
+    id: 208,
+    category: "Responsible AI",
+    text: "你開發 AI 系統時，想讓使用者知道該系統的設計與限制，這是符合哪項原則？",
+    options: {
+      A: "Transparency",
+      B: "Inclusiveness",
+      C: "Privacy",
+      D: "Fairness"
+    },
+    correctAnswer: "A"
+  },
+  {
+    id: 209,
+    category: "Responsible AI",
+    text: "AI 系統使用者無法得知模型判斷邏輯，違反哪個 Microsoft Responsible AI 原則？",
+    options: {
+      A: "Accountability",
+      B: "Inclusiveness",
+      C: "Transparency",
+      D: "Fairness"
+    },
+    correctAnswer: "C"
+  },
+  {
+    id: 210,
+    category: "Responsible AI",
+    text: "系統自動拒絕某一族群用戶申請貸款，可能違反哪項原則？",
+    options: {
+      A: "Inclusiveness",
+      B: "Fairness",
+      C: "Transparency",
+      D: "Privacy"
+    },
+    correctAnswer: "B"
+  },
+  {
+    id: 211,
+    category: "Responsible AI",
+    text: "若一個語音辨識系統無法辨識某地區口音，違反了哪項原則？",
+    options: {
+      A: "Inclusiveness",
+      B: "Privacy",
+      C: "Transparency",
+      D: "Accountability"
+    },
+    correctAnswer: "A"
+  },
+  {
+    id: 212,
+    category: "Responsible AI",
+    text: "AI 系統的資料來源不明、無法解釋其行為，違反哪一項原則？",
+    options: {
+      A: "Accountability",
+      B: "Transparency",
+      C: "Fairness",
+      D: "Privacy"
+    },
+    correctAnswer: "B"
+  },
+  {
+    id: 213,
+    category: "Responsible AI",
+    text: "AI 系統因未檢查資料異常而出錯，應加強哪項原則？",
+    options: {
+      A: "Reliability and Safety",
+      B: "Transparency",
+      C: "Privacy and Security",
+      D: "Inclusiveness"
+    },
+    correctAnswer: "A"
+  },
+  {
+    id: 214,
+    category: "Responsible AI",
+    text: "若系統只使用男性資料進行訓練，則可能違反了哪項原則？",
+    options: {
+      A: "Fairness",
+      B: "Reliability",
+      C: "Privacy",
+      D: "Inclusiveness"
+    },
+    correctAnswer: "A"
+  },
+  {
+    id: 215,
+    category: "Responsible AI",
+    text: "Azure ML 可使用什麼功能來解釋模型的輸出結果？",
+    options: {
+      A: "Explain best model",
+      B: "Filter rows",
+      C: "Remove columns",
+      D: "Optimize parameters"
+    },
+    correctAnswer: "A"
+  }
+);
+const quiz = document.getElementById("quiz");
+const categorySelect = document.getElementById("categorySelect");
+const stats = document.getElementById("stats");
+const showAllBtn = document.getElementById("showAllBtn");
+const showIncorrectBtn = document.getElementById("showIncorrectBtn");
+const retryIncorrectBtn = document.getElementById("retryIncorrectBtn");
+
+let answered = new Map(); // id → { correct: true/false }
+let currentFilter = "all";
+let showOnlyIncorrect = false;
+
+function renderCategoryOptions() {
+  const categories = [...new Set(questions.map(q => q.category))];
+  categories.forEach(cat => {
+    const opt = document.createElement("option");
+    opt.value = cat;
+    opt.textContent = cat;
+    categorySelect.appendChild(opt);
+  });
+}
+
+function renderQuestions() {
+  quiz.innerHTML = "";
+  let filtered = questions;
+  if (currentFilter !== "all") {
+    filtered = filtered.filter(q => q.category === currentFilter);
+  }
+  if (showOnlyIncorrect) {
+    filtered = filtered.filter(q => answered.has(q.id) && !answered.get(q.id).correct);
+  }
+
+  filtered.forEach(q => {
+    const div = document.createElement("div");
+    div.className = "question";
+    div.dataset.id = q.id;
+
+    const title = document.createElement("h3");
+    title.innerHTML = `<strong>(${q.category}) 題目 ${q.id}：</strong><br>${q.text}`;
+    div.appendChild(title);
+
+    const opts = document.createElement("div");
+    opts.className = "options";
+    Object.entries(q.options).forEach(([key, val]) => {
+      const btn = document.createElement("button");
+      btn.textContent = `${key}. ${val}`;
+      btn.onclick = () => {
+        if (div.querySelector(".answer")) return;
+        const answer = document.createElement("div");
+        answer.className = "answer";
+        if (
+          (Array.isArray(q.correctAnswer) && q.correctAnswer.includes(key)) ||
+          (!Array.isArray(q.correctAnswer) && key === q.correctAnswer)
+        ) {
+          btn.classList.add("correct");
+          answer.textContent = "✔️ 正確答案！";
+          answered.set(q.id, { correct: true });
+        } else {
+          btn.classList.add("wrong");
+          div.querySelectorAll("button").forEach(b => {
+            const choice = b.textContent.split(".")[0];
+            if (
+              (Array.isArray(q.correctAnswer) && q.correctAnswer.includes(choice)) ||
+              (!Array.isArray(q.correctAnswer) && choice === q.correctAnswer)
+            ) b.classList.add("correct");
+            b.disabled = true;
+          });
+          answer.textContent = `❌ 錯誤，正確答案是 ${Array.isArray(q.correctAnswer) ? q.correctAnswer.map(k => `${k}. ${q.options[k]}`).join(", ") : q.correctAnswer + ". " + q.options[q.correctAnswer]}`;
+          answered.set(q.id, { correct: false });
+        }
+        div.appendChild(answer);
+        div.querySelectorAll("button").forEach(b => b.disabled = true);
+        updateStats();
+      };
+      opts.appendChild(btn);
+    });
+
+    div.appendChild(opts);
+    quiz.appendChild(div);
+  });
+  updateStats();
+}
+
+function updateStats() {
+  const total = answered.size;
+  const correct = [...answered.values()].filter(v => v.correct).length;
+  const incorrect = total - correct;
+  const rate = total ? Math.round((correct / total) * 100) : 0;
+  stats.innerHTML = `📝 已作答題數：${total}　✅ 答對題數：${correct}　❌ 答錯題數：${incorrect}　📈 正確率：${rate}%`;
+}
+
+categorySelect.onchange = () => {
+  currentFilter = categorySelect.value;
+  renderQuestions();
+};
+
+showAllBtn.onclick = () => {
+  showOnlyIncorrect = false;
+  renderQuestions();
+};
+
+showIncorrectBtn.onclick = () => {
+  showOnlyIncorrect = true;
+  renderQuestions();
+};
+
+retryIncorrectBtn.onclick = () => {
+  [...answered.entries()].forEach(([id, result]) => {
+    if (!result.correct) answered.delete(id);
+  });
+  renderQuestions();
+};
+
+renderCategoryOptions();
+renderQuestions();
