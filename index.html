@@ -3,11 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <title>AI-900 練習題互動式測驗</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
     body {
       font-family: 'Segoe UI', 'Arial', sans-serif;
-      max-width: 600px;
+      max-width: 1000px;
       margin: 2rem auto;
       line-height: 1.6;
       padding: 0 1rem;
@@ -18,39 +17,103 @@
       margin-bottom: 1rem;
       color: #333;
     }
-    select, button {
+    select {
       padding: 0.5rem;
       font-size: 1rem;
-      margin: 0.3rem;
+      margin-right: 1rem;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      justify-content: center;
+    }
+    .controls button {
+      padding: 0.5rem 1rem;
+      font-size: 0.9rem;
+      cursor: pointer;
+      background-color: #eee;
+      border: 1px solid #aaa;
+      border-radius: 4px;
+    }
+    .controls button:hover {
+      background-color: #ddd;
+    }
+    .stats {
+      margin-top: 2rem;
+      padding: 1rem;
+      border-top: 2px solid #ccc;
+      background: #f9f9f9;
+      font-size: 0.95rem;
+      text-align: center;
     }
     .question {
+      margin-bottom: 2rem;
+      padding: 1rem;
       border: 1px solid #ddd;
       border-radius: 5px;
       background: #fff;
-      margin-bottom: 1rem;
-      padding: 1rem;
+    }
+    .question h3 {
+      margin-top: 0;
     }
     .options button {
       display: block;
+      margin: 0.3rem 0;
+      padding: 0.5rem 0.75rem;
+      border-radius: 4px;
+      border: 1px solid #888;
+      background: #f2f2f2;
+      cursor: pointer;
       width: 100%;
       text-align: left;
-      margin: 0.2rem 0;
     }
-    .correct { background-color: #c7f5c7; }
-    .wrong { background-color: #f5c7c7; }
-    .stats { text-align: center; margin-top: 1rem; font-size: 1rem; }
+    .options button.correct {
+      background: #c7f5c7;
+      border-color: green;
+    }
+    .options button.wrong {
+      background: #f5c7c7;
+      border-color: red;
+    }
+    .options button:disabled {
+      opacity: 0.75;
+      cursor: not-allowed;
+    }
+    .answer {
+      margin-top: 0.5rem;
+      font-weight: bold;
+    }
+    .hidden {
+      display: none;
+    }
   </style>
 </head>
 <body>
   <h1>AI-900 練習題互動式測驗</h1>
-  <div style="text-align:center;">
-    題目分類：<select id="categorySelect"></select>
-    <button id="showAll">顯示全部</button>
-    <button id="showIncorrect">只看錯題</button>
-    <button id="retryIncorrect">錯題重練</button>
+
+  <div class="controls">
+    <label>
+      題目分類：
+      <select id="categorySelect">
+        <option value="all">全部分類</option>
+      </select>
+    </label>
+
+    <button id="showAllBtn">顯示全部題目</button>
+    <button id="showIncorrectBtn">只看錯題</button>
+    <button id="retryIncorrectBtn">錯題重練</button>
   </div>
+
   <div id="quiz"></div>
-  <div class="stats" id="stats"></div>
+
+  <div class="stats" id="stats">
+    📝 已作答題數：0　
+    ✅ 答對題數：0　
+    ❌ 答錯題數：0　
+    📈 正確率：0%
+  </div>
 
 <script>
     const questions = [
@@ -2895,110 +2958,173 @@
       }
     ];
 
+    const quiz = document.getElementById("quiz");
+    const categorySelect = document.getElementById("categorySelect");
+    const stats = document.getElementById("stats");
+    const showAllBtn = document.getElementById("showAllBtn");
+    const showIncorrectBtn = document.getElementById("showIncorrectBtn");
+    const retryIncorrectBtn = document.getElementById("retryIncorrectBtn");
 
-const quizContainer = document.getElementById('quiz');
-const statsContainer = document.getElementById('stats');
-const categorySelect = document.getElementById('categorySelect');
-const showAllBtn = document.getElementById('showAll');
-const showIncorrectBtn = document.getElementById('showIncorrect');
-const retryIncorrectBtn = document.getElementById('retryIncorrect');
-let answered = 0, correct = 0, incorrect = 0;
-let incorrectQuestions = [];
+    let answered = new Map(); // id → { correct: true/false }
+    let currentFilter = "all";
+    let showOnlyIncorrect = false;
 
-function updateStats() {
-  const rate = answered === 0 ? 0 : Math.round((correct / answered) * 100);
-  statsContainer.textContent = `📝 已答: ${answered} ✅ 正確: ${correct} ❌ 錯誤: ${incorrect} 📈 正確率: ${rate}%`;
-}
-
-function renderCategoryOptions() {
-  const categories = [...new Set(questions.map(q => q.category))];
-  categorySelect.innerHTML = '<option value="all">全部分類</option>' +
-    categories.map(c => `<option value="${c}">${c}</option>`).join('');
-}
-
-function renderQuestions(filter = () => true) {
-  quizContainer.innerHTML = '';
-  questions.filter(filter).forEach(q => {
-    const div = document.createElement('div');
-    div.className = 'question';
-    div.innerHTML = `<h3>${q.text}</h3>`;
-    const optionsDiv = document.createElement('div');
-    optionsDiv.className = 'options';
-    const isMultiple = Array.isArray(q.correctAnswer);
-    for (const [key, value] of Object.entries(q.options)) {
-      const btn = document.createElement('button');
-      btn.textContent = `${key}. ${value}`;
-      btn.addEventListener('click', () => {
-        if (btn.disabled) return;
-        if (isMultiple) {
-          btn.classList.toggle('selected');
-        } else {
-          answered++;
-          if ((q.correctAnswer === key) || (Array.isArray(q.correctAnswer) && q.correctAnswer.includes(key))) {
-            btn.classList.add('correct');
-            correct++;
-          } else {
-            btn.classList.add('wrong');
-            incorrect++;
-            incorrectQuestions.push(q);
-          }
-          Array.from(optionsDiv.children).forEach(b => b.disabled = true);
-          updateStats();
-        }
+    function renderCategoryOptions() {
+      const categories = [...new Set(questions.map(q => q.category))].sort();
+      categories.forEach(cat => {
+        const opt = document.createElement("option");
+        opt.value = cat;
+        opt.textContent = cat;
+        categorySelect.appendChild(opt);
       });
-      optionsDiv.appendChild(btn);
     }
-    if (isMultiple) {
-      const submitBtn = document.createElement('button');
-      submitBtn.textContent = '提交';
-      submitBtn.addEventListener('click', () => {
-        const selected = Array.from(optionsDiv.children).filter(b => b.classList.contains('selected')).map(b => b.textContent[0]);
-        answered++;
-        if (selected.length === q.correctAnswer.length && selected.every(a => q.correctAnswer.includes(a))) {
-          selected.forEach(letter => {
-            const b = Array.from(optionsDiv.children).find(b => b.textContent.startsWith(letter));
-            if (b) b.classList.add('correct');
-          });
-          correct++;
-        } else {
-          selected.forEach(letter => {
-            const b = Array.from(optionsDiv.children).find(b => b.textContent.startsWith(letter));
-            if (b) b.classList.add('wrong');
-          });
-          incorrect++;
-          incorrectQuestions.push(q);
-        }
-        Array.from(optionsDiv.children).forEach(b => b.disabled = true);
-        submitBtn.disabled = true;
-        updateStats();
-      });
-      optionsDiv.appendChild(submitBtn);
-    }
-    div.appendChild(optionsDiv);
-    quizContainer.appendChild(div);
-  });
-}
 
-categorySelect.addEventListener('change', () => {
-  const val = categorySelect.value;
-  if (val === 'all') {
+    function renderQuestions() {
+      quiz.innerHTML = "";
+      let filtered = questions;
+      if (currentFilter !== "all") {
+        filtered = filtered.filter(q => q.category === currentFilter);
+      }
+      if (showOnlyIncorrect) {
+        filtered = filtered.filter(q => answered.has(q.id) && !answered.get(q.id).correct);
+      }
+
+      filtered.forEach(q => {
+        const div = document.createElement("div");
+        div.className = "question";
+        div.dataset.id = q.id;
+
+        const title = document.createElement("h3");
+        title.innerHTML = `<strong>(${q.category}) 題目 ${q.id}：</strong><br>${q.text}`;
+        div.appendChild(title);
+
+        const opts = document.createElement("div");
+        opts.className = "options";
+        Object.entries(q.options).forEach(([key, val]) => {
+          const btn = document.createElement("button");
+          btn.textContent = `${key}. ${val}`;
+          btn.onclick = (e) => {
+            // 防止重複點擊
+            if (div.querySelector(".answer")) return;
+
+            // 處理多選題的邏輯
+            if (Array.isArray(q.correctAnswer)) {
+                e.target.classList.toggle('selected'); // 標記選中
+
+                // 檢查是否所有答案都選對了
+                const selectedButtons = opts.querySelectorAll('button.selected');
+                const selectedChoices = Array.from(selectedButtons).map(b => b.textContent.split('.')[0]);
+
+                // 如果還沒選完所有答案，就先不判斷
+                if (selectedChoices.length < q.correctAnswer.length) {
+                    return;
+                }
+
+                const isCorrect = q.correctAnswer.every(ans => selectedChoices.includes(ans)) && selectedChoices.length === q.correctAnswer.length;
+
+                const answer = document.createElement("div");
+                answer.className = "answer";
+                
+                if (isCorrect) {
+                    answer.textContent = "✔️ 正確答案！";
+                    answered.set(q.id, { correct: true });
+                    selectedButtons.forEach(b => b.classList.add('correct'));
+                } else {
+                    answer.textContent = `❌ 錯誤，正確答案是 ${q.correctAnswer.join(', ')}`;
+                    answered.set(q.id, { correct: false });
+                    div.querySelectorAll("button").forEach(b => {
+                        const choice = b.textContent.split(".")[0];
+                        if (q.correctAnswer.includes(choice)) {
+                            b.classList.add("correct");
+                        }
+                        if(selectedChoices.includes(choice) && !q.correctAnswer.includes(choice)){
+                           b.classList.add("wrong");
+                        }
+                    });
+                }
+                div.appendChild(answer);
+                div.querySelectorAll("button").forEach(b => b.disabled = true);
+                updateStats();
+
+
+            } else { // 單選題邏輯
+                const answer = document.createElement("div");
+                answer.className = "answer";
+                if (key === q.correctAnswer) {
+                    btn.classList.add("correct");
+                    answer.textContent = "✔️ 正確答案！";
+                    answered.set(q.id, { correct: true });
+                } else {
+                    btn.classList.add("wrong");
+                    answer.textContent = `❌ 錯誤，正確答案是 ${q.correctAnswer}`;
+                    answered.set(q.id, { correct: false });
+                    // 標示出正確答案
+                     div.querySelectorAll("button").forEach(b => {
+                        if (b.textContent.split('.')[0] === q.correctAnswer) {
+                            b.classList.add("correct");
+                        }
+                    });
+                }
+                div.appendChild(answer);
+                div.querySelectorAll("button").forEach(b => b.disabled = true);
+                updateStats();
+            }
+          };
+          opts.appendChild(btn);
+        });
+
+        div.appendChild(opts);
+        quiz.appendChild(div);
+      });
+      updateStats();
+    }
+    
+    // 為了更好地處理多選題，我們調整一下點擊事件和樣式
+    const styleSheet = document.createElement("style");
+    styleSheet.innerText = `
+      .options button.selected { background: #dbeafe; border-color: #60a5fa; }
+      .options button.correct.selected { background: #c7f5c7; border-color: green; }
+    `;
+    document.head.appendChild(styleSheet);
+
+
+    function updateStats() {
+      const total = answered.size;
+      const correct = [...answered.values()].filter(v => v.correct).length;
+      const incorrect = total - correct;
+      const rate = total ? Math.round((correct / total) * 100) : 0;
+      stats.innerHTML = `📝 已作答題數：${total}　✅ 答對題數：${correct}　❌ 答錯題數：${incorrect}　📈 正確率：${rate}%`;
+    }
+
+    categorySelect.onchange = () => {
+      showOnlyIncorrect = false; // 切換分類時，取消只看錯題模式
+      currentFilter = categorySelect.value;
+      renderQuestions();
+    };
+
+    showAllBtn.onclick = () => {
+      showOnlyIncorrect = false;
+      renderQuestions();
+    };
+
+    showIncorrectBtn.onclick = () => {
+      showOnlyIncorrect = true;
+      renderQuestions();
+    };
+
+    retryIncorrectBtn.onclick = () => {
+      const incorrectIds = [...answered.entries()]
+          .filter(([id, result]) => !result.correct)
+          .map(([id, result]) => id);
+      
+      incorrectIds.forEach(id => answered.delete(id));
+      
+      showOnlyIncorrect = true; // 設定為只看錯題模式
+      renderQuestions(); // 重新渲染，此時只會顯示之前答錯的題目
+      showOnlyIncorrect = false; // 重設回來，以免影響下次篩選
+    };
+
+    renderCategoryOptions();
     renderQuestions();
-  } else {
-    renderQuestions(q => q.category === val);
-  }
-});
-
-showAllBtn.addEventListener('click', () => renderQuestions());
-showIncorrectBtn.addEventListener('click', () => renderQuestions(q => incorrectQuestions.includes(q)));
-retryIncorrectBtn.addEventListener('click', () => {
-  questions = incorrectQuestions;
-  incorrectQuestions = [];
-  renderQuestions();
-});
-
-renderCategoryOptions();
-renderQuestions();
-updateStats();
-</script>
-</body>
-</html>
+  </script>
+   
